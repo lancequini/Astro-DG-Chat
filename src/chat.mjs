@@ -388,6 +388,7 @@ export class ChatRoom {
             break;
           }
         }
+        return;
       }
 
       // Construct sanitized message for storage and broadcast.
