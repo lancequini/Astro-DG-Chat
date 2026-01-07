@@ -457,7 +457,7 @@ function join() {
       for (const node of messageNodes) {
         if (node.dataset && node.dataset.id === data.id) {
           // Replace the text with [Deleted], preserving timestamp if desired.
-          node.innerText = "[Deleted]";
+          node.innerText = "[" + timestamp + "] " + name + ": [Deleted]";
           break;
         }
       }
@@ -495,7 +495,7 @@ function addChatMessage(name, text, id, time) {
     tag.innerText = "[" + timestamp + "] " + name + ": ";
     p.appendChild(tag);
   }
-  
+
   p.appendChild(document.createTextNode(text));
 
   // Create a delete button and add it to the text line if the message was created by the user. 
@@ -505,6 +505,7 @@ function addChatMessage(name, text, id, time) {
   
   if(username == name){
     let deleteButton = document.createElement("button");
+    deleteButton.type = 'button';
     deleteButton.id = 'deleteButton';
     deleteButton.style.float = 'right';
     deleteButton.appendChild(document.createTextNode("Del"));
