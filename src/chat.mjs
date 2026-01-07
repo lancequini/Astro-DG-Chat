@@ -385,7 +385,8 @@ export class ChatRoom {
         // Find the message in the chat history.
         const existing = await this.storage.get(messageId);
         if (existing !== undefined) {
-          await this.storage.delete(messageId);
+          //Uncomment this line if you want to delete messages from storage.
+          //await this.storage.delete(messageId);
 
           // Broadcast a delete event with a clear schema
           this.broadcast(JSON.stringify({ type: "delete", id: messageId }));
