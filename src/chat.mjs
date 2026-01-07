@@ -316,7 +316,13 @@ export class ChatRoom {
     let backlog = [...storage.values()];
     backlog.reverse();
     backlog.forEach(value => {
-      session.blockedMessages.push(value);
+      // value is a JSON string you stored earlier (dataStr)
+      try {
+        const obj = JSON.parse(value);
+        session.blockedMessages.push(obj);
+      } catch {
+        // ignore malformed history entries
+      }
     });
   }
 
