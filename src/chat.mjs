@@ -361,7 +361,7 @@ export class ChatRoom {
 
         // Deliver all the messages we queued up since the user connected.
         session.blockedMessages.forEach(queued => {
-          webSocket.send(queued);
+          webSocket.send(JSON.stringify(queued));
         });
         delete session.blockedMessages;
 
@@ -374,25 +374,21 @@ export class ChatRoom {
 
       if (data.delete) {
         // Handle delete message.
-        let messageId = data.delete;
+        const messageId = String(data.delete);
 
         // Find the message in the chat history.
-        let storage = await this.storage.list();
-        for (let value of storage.values()) {
-          if (value.key === messageId) {
-            // Delete it from storage.
-            await this.storage.delete(value.key);
+        const existing = await this.storage.get(messageId);
+        if (existing !== undefined) {
+          await this.storage.delete(messageId);
 
-            // Broadcast the delete message to all other clients.
-            this.broadcast({delete: messageId}); 
-            break;
-          }
+          // Broadcast a delete event with a clear schema
+          this.broadcast(JSON.stringify({ type: "delete", id: messageId }));
         }
         return;
       }
 
       // Construct sanitized message for storage and broadcast.
-      data = { name: session.name, message: "" + data.message };
+      data = { id: new Date().toISOString(), name: session.name, message: "" + data.message };
 
       // Block people from sending overly long messages. This is also enforced on the client,
       // so to trigger this the user must be bypassing the client code.
@@ -412,8 +408,7 @@ export class ChatRoom {
       this.broadcast(dataStr);
 
       // Save message.
-      let key = new Date(data.timestamp).toISOString();
-      await this.storage.put(key, dataStr);
+      await this.storage.put(data.id, dataStr);
     } catch (err) {
       // Report any exceptions directly back to the client. As with our handleErrors() this
       // probably isn't what you'd want to do in production, but it's convenient when testing.
@@ -442,47 +437,47 @@ export class ChatRoom {
 
   // broadcast() broadcasts a message to all clients.
   broadcast(message) {
-    // Apply JSON if we weren't given a string to start with.
-    if (typeof message !== "string") {
-      message = JSON.stringify(message);
-    }
+    // Normalize to object
+    let msgObj = typeof message === "string" ? JSON.parse(message) : message;
+    let msgStr = typeof message === "string" ? message : JSON.stringify(message);
 
-    // Iterate over all the sessions sending them messages.
     let quitters = [];
+
     this.sessions.forEach((session, webSocket) => {
       if (session.name) {
         try {
-          webSocket.send(message);
+          webSocket.send(msgStr);
         } catch (err) {
-          // Whoops, this connection is dead. Remove it from the map and arrange to notify
-          // everyone below.
           session.quit = true;
           quitters.push(session);
           this.sessions.delete(webSocket);
         }
-      } else if (message.delete) {
-        // Handle delete message.
-        let messageId = JSON.parse(message).delete;
-        
-        this.sessions.forEach((session) => {
-          if (session.blockedMessages) {
-            session.blockedMessages = session.blockedMessages.filter((msg) => msg.id !== messageId);
-          }
-        });
       } else {
-        // This session hasn't sent the initial user info message yet, so we're not sending them
-        // messages yet (no secret lurking!). Queue the message to be sent later.
-        session.blockedMessages.push(message);
+        // Not ready yet: queue
+        if (!session.blockedMessages) session.blockedMessages = [];
+        session.blockedMessages.push(msgObj);
       }
     });
 
-    quitters.forEach(quitter => {
+    // If this is a delete, remove from any queued backlogs
+    if (msgObj.type === "delete" && msgObj.id) {
+      for (let session of this.sessions.values()) {
+        if (session.blockedMessages) {
+          session.blockedMessages = session.blockedMessages.filter(
+            (m) => m.id !== msgObj.id
+          );
+        }
+      }
+    }
+
+    // Notify about quitters
+    quitters.forEach((quitter) => {
       if (quitter.name) {
-        this.broadcast({quit: quitter.name});
+        this.broadcast({ type: "quit", name: quitter.name });
       }
     });
   }
-}
+
 
 // =======================================================================================
 // The RateLimiter Durable Object class.

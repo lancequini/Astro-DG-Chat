@@ -451,10 +451,20 @@ function join() {
         "");
         }
       }
+    } else if (data.type === "delete" && data.id) {
+      // Find the DOM node for this message and mark it deleted.
+      const messageNodes = chatlog.querySelectorAll("p");
+      for (const node of messageNodes) {
+        if (node.dataset && node.dataset.id === data.id) {
+          // Replace the text with [Deleted], preserving timestamp if desired.
+          node.innerText = "[Deleted]";
+          break;
+        }
+      }
     } else {
       // A regular chat message.
       if (data.timestamp > lastSeenTimestamp) {
-        addChatMessage(data.name, data.message, data.timestamp);
+        addChatMessage(data.name, data.message, data.id, data.timestamp);
         lastSeenTimestamp = data.timestamp;
       }
     }
@@ -470,8 +480,13 @@ function join() {
   });
 }
 
-function addChatMessage(name, text, time) {
+function addChatMessage(name, text, id, time) {
   let p = document.createElement("p");
+
+  if(id) {
+    p.dataset.id = id;
+  }
+
   if (name) {
     let tag = document.createElement("span");
     let timestamp = new Date(time).toLocaleTimeString();
@@ -480,6 +495,7 @@ function addChatMessage(name, text, time) {
     tag.innerText = "[" + timestamp + "] " + name + ": ";
     p.appendChild(tag);
   }
+  
   p.appendChild(document.createTextNode(text));
 
   // Create a delete button and add it to the text line if the message was created by the user. 
@@ -494,7 +510,7 @@ function addChatMessage(name, text, time) {
     deleteButton.appendChild(document.createTextNode("Del"));
     deleteButton.onclick = function() {
       // Send a delete message to the server.
-      currentWebSocket.send(JSON.stringify({delete: time}));
+      currentWebSocket.send(JSON.stringify({delete: id}));
 
       // Change the text to deleted.
       let timestamp = new Date(time).toLocaleTimeString();
