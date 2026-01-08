@@ -35,6 +35,7 @@ body {
   font-weight: bold;
 }
 
+/* Container alignment (you likely already have these) */
 .message-self {
   text-align: right;
 }
@@ -43,16 +44,42 @@ body {
   text-align: left;
 }
 
-/* Optional: make the timestamp slightly dimmer/smaller */
-.self-timestamp,
+/* Common bubble shape */
+.message-bubble {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 12px;
+  max-width: 70%;
+  word-wrap: break-word;
+}
+
+/* Logged-in user: light blue bubble */
+.message-self .message-bubble {
+  background-color: #40a3ff; /* light blue */
+  color: #ffffff;
+}
+
+/* Other users: grey bubble */
+.message-other .message-bubble {
+  background-color: #898989; /* light grey */
+  color: #e8e8e8;
+}
+
+/* Make the self timestamp slightly dimmer/smaller */
+.self-timestamp {
+  color: #cdcdcd;        /* dim color */
+  font-size: 0.9em;   /* slightly smaller */
+}
+
+/* Make the other timestamp slightly dimmer/smaller */
 .other-timestamp {
-  color: #888;        /* dim color */
+  color: #5e5e5e;        /* dim color */
   font-size: 0.9em;   /* slightly smaller */
 }
 
 .date-separator {
   text-align: center;
-  margin: 8px 0;
+  margin: 30px 0;
   font-size: 0.9em;
   color: #666;
 }
@@ -439,7 +466,7 @@ function join() {
     let data = JSON.parse(event.data);
 
     if (data.error) {
-      addChatMessage(null, "* Error: " + data.error);
+      addChatMessage(null, "* Error: " + data.error, null);
     } else if (data.joined) {
       let p = document.createElement("p");
       p.innerText = data.joined;
@@ -501,8 +528,9 @@ function isValidTimestamp(t) {
 }
 
 function addChatMessage(name, payloadOrText, time) {
-    const dateKey = getDateKeyFromTimestamp(time);
 
+  // Insert a date separator if this message is more than a day old.
+  const dateKey = getDateKeyFromTimestamp(time);
   if (dateKey && dateKey !== lastRenderedDate) {
     lastRenderedDate = dateKey;
     insertDateSeparator(time);
@@ -510,28 +538,30 @@ function addChatMessage(name, payloadOrText, time) {
 
   const isSelf = (typeof name === "string" && name.length > 0 && username === name);
 
-  let p = document.createElement("p");
-
-  // Always set alignment based on isSelf
-  if (isSelf) {
-    p.classList.add("message-self");
-  } else {
-    p.classList.add("message-other");
-  }
+  const p = document.createElement("p");
+  p.classList.add(isSelf ? "message-self" : "message-other");
 
   const hasValidTime = typeof time === "number" && !isNaN(time);
   const hasName = typeof name === "string" && name.length > 0;
 
-  // Helper to get plain text from payloadOrText
   const text = typeof payloadOrText === "string"
     ? payloadOrText
     : (payloadOrText && payloadOrText.message) || "";
 
+  // Skips empty messages. Handles a bug where an empty message is created on initial login.
+  if (!text || !text.trim()) {
+    return;
+  }
+
+  // Bubble element
+  const bubble = document.createElement("span");
+  bubble.classList.add("message-bubble");
+
   if (isSelf) {
-    // Self: text [timestamp] (no username)
+    // Self: text + timestamp inside the bubble, no username
     const textSpan = document.createElement("span");
     appendMessageWithLinks(textSpan, text);
-    p.appendChild(textSpan);
+    bubble.appendChild(textSpan);
 
     if (hasValidTime) {
       const ts = new Date(time);
@@ -539,33 +569,36 @@ function addChatMessage(name, payloadOrText, time) {
         const selfTime = document.createElement("span");
         selfTime.className = "self-timestamp";
         selfTime.innerText = " [" + ts.toLocaleTimeString() + "]";
-        p.appendChild(selfTime);
+        bubble.appendChild(selfTime);
       }
     }
   } else if (hasName) {
-    // Other users: [timestamp] username: text
+    // Others: [timestamp] username: text inside the bubble
     if (hasValidTime) {
       const ts = new Date(time);
       if (!isNaN(ts.getTime())) {
         const timeSpan = document.createElement("span");
         timeSpan.className = "other-timestamp";
         timeSpan.innerText = "[" + ts.toLocaleTimeString() + "] ";
-        p.appendChild(timeSpan);
+        bubble.appendChild(timeSpan);
       }
     }
 
     const nameSpan = document.createElement("span");
     nameSpan.className = "username";
     nameSpan.innerText = name + ": ";
-    p.appendChild(nameSpan);
+    bubble.appendChild(nameSpan);
 
-    appendMessageWithLinks(p, text);
+    appendMessageWithLinks(bubble, text);
   } else {
-    // System / welcome / ready messages: text only, no username or timestamp
-    appendMessageWithLinks(p, text);
+    // System/date messages: no bubble color change, or you can skip bubble entirely
+    appendMessageWithLinks(bubble, text);
   }
 
+  p.appendChild(bubble);
+  
   chatlog.appendChild(p);
+
   if (isAtBottom) {
     chatlog.scrollBy(0, 1e8);
   }
