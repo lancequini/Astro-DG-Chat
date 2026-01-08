@@ -34,6 +34,56 @@ body {
 #chatlog span.username {
   font-weight: bold;
 }
+
+/* Container alignment (you likely already have these) */
+.message-self {
+  text-align: right;
+}
+
+.message-other {
+  text-align: left;
+}
+
+/* Common bubble shape */
+.message-bubble {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 12px;
+  max-width: 70%;
+  word-wrap: break-word;
+}
+
+/* Logged-in user: light blue bubble */
+.message-self .message-bubble {
+  background-color: #40a3ff; /* light blue */
+  color: #ffffff;
+}
+
+/* Other users: grey bubble */
+.message-other .message-bubble {
+  background-color: #898989; /* light grey */
+  color: #e8e8e8;
+}
+
+/* Make the self timestamp slightly dimmer/smaller */
+.self-timestamp {
+  color: #cdcdcd;        /* dim color */
+  font-size: 0.9em;   /* slightly smaller */
+}
+
+/* Make the other timestamp slightly dimmer/smaller */
+.other-timestamp {
+  color: #5e5e5e;        /* dim color */
+  font-size: 0.9em;   /* slightly smaller */
+}
+
+.date-separator {
+  text-align: center;
+  margin: 30px 0;
+  font-size: 0.9em;
+  color: #666;
+}
+
 #spacer {
   height: calc(100vh - 32px - 5em);
 }
@@ -221,6 +271,9 @@ let roster = document.querySelector("#roster");
 
 // Is the chatlog scrolled to the bottom?
 let isAtBottom = true;
+
+// Date variable used for determining if the previous message was from the same day.
+let lastRenderedDate = null; // e.g. "2026-01-07"
 
 let username;
 let roomname;
@@ -413,7 +466,7 @@ function join() {
     let data = JSON.parse(event.data);
 
     if (data.error) {
-      addChatMessage(null, "* Error: " + data.error);
+      addChatMessage(null, "* Error: " + data.error, null);
     } else if (data.joined) {
       let p = document.createElement("p");
       p.innerText = data.joined;
@@ -454,7 +507,7 @@ function join() {
     } else {
       // A regular chat message.
       if (data.timestamp > lastSeenTimestamp) {
-        addChatMessage(data.name, data.message, data.timestamp);
+        addChatMessage(data.name, data, data.timestamp);
         lastSeenTimestamp = data.timestamp;
       }
     }
@@ -470,39 +523,87 @@ function join() {
   });
 }
 
-function addChatMessage(name, text, time) {
-  let p = document.createElement("p");
-  if (name) {
-    let tag = document.createElement("span");
-    let timestamp = new Date(time).toLocaleTimeString();
-    tag.className = "username";
-    //Adding the timestamp to the beginning of the name. 
-    tag.innerText = "[" + timestamp + "] " + name + ": ";
-    p.appendChild(tag);
+function isValidTimestamp(t) {
+  return typeof t === "number" && !isNaN(t);
+}
+
+function addChatMessage(name, payloadOrText, time) {
+
+  // Insert a date separator if this message is more than a day old.
+  const dateKey = getDateKeyFromTimestamp(time);
+  if (dateKey && dateKey !== lastRenderedDate) {
+    lastRenderedDate = dateKey;
+    insertDateSeparator(time);
   }
-  
-  
-  // Render message text with URLs hyperlinked.
-  appendMessageWithLinks(p, text);
 
-  
-  // If the name of the text poster is the same as the username logged in, align the text to
-  // the right.
-  //if(username = name) {
-  //  p.style.textAlign = "right";
-  //} else {
-  //  p.style.textAlign = "left";
-  //}
-  
+  const isSelf = (typeof name === "string" && name.length > 0 && username === name);
 
-  // Append the new chat line, making sure that if the chatlog was scrolled to the bottom
-  // before, it remains scrolled to the bottom, and otherwise the scroll position doesn't
-  // change.
+  const p = document.createElement("p");
+  p.classList.add(isSelf ? "message-self" : "message-other");
+
+  const hasValidTime = typeof time === "number" && !isNaN(time);
+  const hasName = typeof name === "string" && name.length > 0;
+
+  const text = typeof payloadOrText === "string"
+    ? payloadOrText
+    : (payloadOrText && payloadOrText.message) || "";
+
+  // Skips empty messages. Handles a bug where an empty message is created on initial login.
+  if (!text || !text.trim()) {
+    return;
+  }
+
+  // Bubble element
+  const bubble = document.createElement("span");
+  bubble.classList.add("message-bubble");
+
+  if (isSelf) {
+    // Self: text + timestamp inside the bubble, no username
+    const textSpan = document.createElement("span");
+    appendMessageWithLinks(textSpan, text);
+    bubble.appendChild(textSpan);
+
+    if (hasValidTime) {
+      const ts = new Date(time);
+      if (!isNaN(ts.getTime())) {
+        const selfTime = document.createElement("span");
+        selfTime.className = "self-timestamp";
+        selfTime.innerText = " [" + ts.toLocaleTimeString() + "]";
+        bubble.appendChild(selfTime);
+      }
+    }
+  } else if (hasName) {
+    // Others: [timestamp] username: text inside the bubble
+    if (hasValidTime) {
+      const ts = new Date(time);
+      if (!isNaN(ts.getTime())) {
+        const timeSpan = document.createElement("span");
+        timeSpan.className = "other-timestamp";
+        timeSpan.innerText = "[" + ts.toLocaleTimeString() + "] ";
+        bubble.appendChild(timeSpan);
+      }
+    }
+
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "username";
+    nameSpan.innerText = name + ": ";
+    bubble.appendChild(nameSpan);
+
+    appendMessageWithLinks(bubble, text);
+  } else {
+    // System/date messages: no bubble color change, or you can skip bubble entirely
+    appendMessageWithLinks(bubble, text);
+  }
+
+  p.appendChild(bubble);
+  
   chatlog.appendChild(p);
+
   if (isAtBottom) {
     chatlog.scrollBy(0, 1e8);
   }
 }
+
 
 function appendMessageWithLinks(container, text) {
   // Regex: basic URL detection (http/https)
@@ -537,6 +638,43 @@ function appendMessageWithLinks(container, text) {
   }
 }
 
+function insertDateSeparator(time) {
+  const label = getDateLabelFromTimestamp(time);
+  if (!label) return;
+
+  const div = document.createElement("div");
+  div.className = "date-separator";
+  div.innerText = label;
+
+  chatlog.appendChild(div);
+}
+
+
+function getDateKeyFromTimestamp(time) {
+  if (typeof time !== "number" || isNaN(time)) return null;
+  const d = new Date(time);
+  if (isNaN(d.getTime())) return null;
+
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+// Returns a string like "Jan 7, 2026" for use in a date separator
+function getDateLabelFromTimestamp(time) {
+  const d = new Date(time);
+  if (isNaN(d.getTime())) return "";
+
+  const options = {
+    year: "numeric",
+    month: "short", // e.g. "Jan"
+    day: "numeric"
+  };
+
+  // Example output: "Jan 7, 2026" in an en-US locale
+  return d.toLocaleDateString("en-US", options);
+}
 
 startNameChooser();
 </script>
