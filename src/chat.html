@@ -480,7 +480,12 @@ function addChatMessage(name, text, time) {
     tag.innerText = "[" + timestamp + "] " + name + ": ";
     p.appendChild(tag);
   }
-  p.appendChild(document.createTextNode(text));
+
+
+  // Use linkified HTML for the message body
+  const messageSpan = document.createElement("span");
+  messageSpan.innerHTML = linkify(text);
+  p.appendChild(messageSpan);
   
   // If the name of the text poster is the same as the username logged in, align the text to
   // the right.
@@ -499,6 +504,22 @@ function addChatMessage(name, text, time) {
     chatlog.scrollBy(0, 1e8);
   }
 }
+
+function linkify(text) {
+  // Escape basic HTML to avoid XSS
+  const escape = (s) =>
+    s.replace(/&/g, "&amp;")
+     .replace(/</g, "&lt;")
+     .replace(/>/g, "&gt;");
+
+  const urlRegex = /\bhttps?:\/\/[^\s<]+/g;
+
+  return escape(text).replace(urlRegex, (url) => {
+    const safeUrl = url.replace(/"/g, "%22");
+    return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${safeUrl}</a>`;
+  });
+}
+
 
 startNameChooser();
 </script>
