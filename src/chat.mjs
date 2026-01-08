@@ -316,6 +316,8 @@ export class ChatRoom {
     let backlog = [...storage.values()];
     backlog.reverse();
     backlog.forEach(value => {
+      session.blockedMessages.push(value);
+
       // value is a JSON string you stored earlier (dataStr)
       try {
         const obj = JSON.parse(value);
@@ -385,8 +387,7 @@ export class ChatRoom {
         // Find the message in the chat history.
         const existing = await this.storage.get(messageId);
         if (existing !== undefined) {
-          //Uncomment this line if you want to delete messages from storage.
-          //await this.storage.delete(messageId);
+          await this.storage.delete(messageId);
 
           // Broadcast a delete event with a clear schema
           this.broadcast(JSON.stringify({ type: "delete", id: messageId }));
