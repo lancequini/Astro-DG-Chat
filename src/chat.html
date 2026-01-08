@@ -34,6 +34,29 @@ body {
 #chatlog span.username {
   font-weight: bold;
 }
+
+.message-self {
+  text-align: right;
+}
+
+.message-other {
+  text-align: left;
+}
+
+/* Optional: make the timestamp slightly dimmer/smaller */
+.self-timestamp,
+.other-timestamp {
+  color: #888;        /* dim color */
+  font-size: 0.9em;   /* slightly smaller */
+}
+
+.date-separator {
+  text-align: center;
+  margin: 8px 0;
+  font-size: 0.9em;
+  color: #666;
+}
+
 #spacer {
   height: calc(100vh - 32px - 5em);
 }
@@ -221,6 +244,9 @@ let roster = document.querySelector("#roster");
 
 // Is the chatlog scrolled to the bottom?
 let isAtBottom = true;
+
+// Date variable used for determining if the previous message was from the same day.
+let lastRenderedDate = null; // e.g. "2026-01-07"
 
 let username;
 let roomname;
@@ -454,7 +480,7 @@ function join() {
     } else {
       // A regular chat message.
       if (data.timestamp > lastSeenTimestamp) {
-        addChatMessage(data.name, data.message, data.timestamp);
+        addChatMessage(data.name, data, data.timestamp);
         lastSeenTimestamp = data.timestamp;
       }
     }
@@ -470,39 +496,81 @@ function join() {
   });
 }
 
-function addChatMessage(name, text, time) {
-  let p = document.createElement("p");
-  if (name) {
-    let tag = document.createElement("span");
-    let timestamp = new Date(time).toLocaleTimeString();
-    tag.className = "username";
-    //Adding the timestamp to the beginning of the name. 
-    tag.innerText = "[" + timestamp + "] " + name + ": ";
-    p.appendChild(tag);
+function isValidTimestamp(t) {
+  return typeof t === "number" && !isNaN(t);
+}
+
+function addChatMessage(name, payloadOrText, time) {
+    const dateKey = getDateKeyFromTimestamp(time);
+
+  if (dateKey && dateKey !== lastRenderedDate) {
+    lastRenderedDate = dateKey;
+    insertDateSeparator(time);
   }
-  
-  
-  // Render message text with URLs hyperlinked.
-  appendMessageWithLinks(p, text);
 
-  
-  // If the name of the text poster is the same as the username logged in, align the text to
-  // the right.
-  //if(username = name) {
-  //  p.style.textAlign = "right";
-  //} else {
-  //  p.style.textAlign = "left";
-  //}
-  
+  const isSelf = (typeof name === "string" && name.length > 0 && username === name);
 
-  // Append the new chat line, making sure that if the chatlog was scrolled to the bottom
-  // before, it remains scrolled to the bottom, and otherwise the scroll position doesn't
-  // change.
+  let p = document.createElement("p");
+
+  // Always set alignment based on isSelf
+  if (isSelf) {
+    p.classList.add("message-self");
+  } else {
+    p.classList.add("message-other");
+  }
+
+  const hasValidTime = typeof time === "number" && !isNaN(time);
+  const hasName = typeof name === "string" && name.length > 0;
+
+  // Helper to get plain text from payloadOrText
+  const text = typeof payloadOrText === "string"
+    ? payloadOrText
+    : (payloadOrText && payloadOrText.message) || "";
+
+  if (isSelf) {
+    // Self: text [timestamp] (no username)
+    const textSpan = document.createElement("span");
+    appendMessageWithLinks(textSpan, text);
+    p.appendChild(textSpan);
+
+    if (hasValidTime) {
+      const ts = new Date(time);
+      if (!isNaN(ts.getTime())) {
+        const selfTime = document.createElement("span");
+        selfTime.className = "self-timestamp";
+        selfTime.innerText = " [" + ts.toLocaleTimeString() + "]";
+        p.appendChild(selfTime);
+      }
+    }
+  } else if (hasName) {
+    // Other users: [timestamp] username: text
+    if (hasValidTime) {
+      const ts = new Date(time);
+      if (!isNaN(ts.getTime())) {
+        const timeSpan = document.createElement("span");
+        timeSpan.className = "other-timestamp";
+        timeSpan.innerText = "[" + ts.toLocaleTimeString() + "] ";
+        p.appendChild(timeSpan);
+      }
+    }
+
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "username";
+    nameSpan.innerText = name + ": ";
+    p.appendChild(nameSpan);
+
+    appendMessageWithLinks(p, text);
+  } else {
+    // System / welcome / ready messages: text only, no username or timestamp
+    appendMessageWithLinks(p, text);
+  }
+
   chatlog.appendChild(p);
   if (isAtBottom) {
     chatlog.scrollBy(0, 1e8);
   }
 }
+
 
 function appendMessageWithLinks(container, text) {
   // Regex: basic URL detection (http/https)
@@ -537,6 +605,43 @@ function appendMessageWithLinks(container, text) {
   }
 }
 
+function insertDateSeparator(time) {
+  const label = getDateLabelFromTimestamp(time);
+  if (!label) return;
+
+  const div = document.createElement("div");
+  div.className = "date-separator";
+  div.innerText = label;
+
+  chatlog.appendChild(div);
+}
+
+
+function getDateKeyFromTimestamp(time) {
+  if (typeof time !== "number" || isNaN(time)) return null;
+  const d = new Date(time);
+  if (isNaN(d.getTime())) return null;
+
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+// Returns a string like "Jan 7, 2026" for use in a date separator
+function getDateLabelFromTimestamp(time) {
+  const d = new Date(time);
+  if (isNaN(d.getTime())) return "";
+
+  const options = {
+    year: "numeric",
+    month: "short", // e.g. "Jan"
+    day: "numeric"
+  };
+
+  // Example output: "Jan 7, 2026" in an en-US locale
+  return d.toLocaleDateString("en-US", options);
+}
 
 startNameChooser();
 </script>
