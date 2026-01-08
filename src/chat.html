@@ -433,7 +433,7 @@ function join() {
         //Scrolls to the bottom of the page on initial load.
         chatlog.scrollTop = chatlog.scrollHeight;
         isAtBottom = true;
-        
+
         //  addChatMessage(null,
         //    "* This is a demo app built with Cloudflare Workers Durable Objects. The source code " +
         //    "can be found at: https://github.com/cloudflare/workers-chat-demo");
@@ -451,10 +451,20 @@ function join() {
         "");
         }
       }
+    } else if (data.type === "delete" && data.id) {
+      // Find the DOM node for this message and mark it deleted.
+      const messageNodes = chatlog.querySelectorAll("p");
+      for (const node of messageNodes) {
+        if (node.dataset && node.dataset.id === data.id) {
+          // Replace the text with [Deleted], preserving timestamp if desired.
+          node.innerText = "[" + timestamp + "] " + name + ": [Deleted]";
+          break;
+        }
+      }
     } else {
       // A regular chat message.
       if (data.timestamp > lastSeenTimestamp) {
-        addChatMessage(data.name, data.message, data.timestamp);
+        addChatMessage(data.name, data.message, data.id, data.timestamp);
         lastSeenTimestamp = data.timestamp;
       }
     }
@@ -470,8 +480,13 @@ function join() {
   });
 }
 
-function addChatMessage(name, text, time) {
+function addChatMessage(name, text, id, time) {
   let p = document.createElement("p");
+
+  if(id) {
+    p.dataset.id = id;
+  }
+
   if (name) {
     let tag = document.createElement("span");
     let timestamp = new Date(time).toLocaleTimeString();
