@@ -480,7 +480,11 @@ function addChatMessage(name, text, time) {
     tag.innerText = "[" + timestamp + "] " + name + ": ";
     p.appendChild(tag);
   }
-  p.appendChild(document.createTextNode(text));
+  
+  
+  // Render message text with URLs hyperlinked.
+  appendMessageWithLinks(p, text);
+
   
   // If the name of the text poster is the same as the username logged in, align the text to
   // the right.
@@ -499,6 +503,40 @@ function addChatMessage(name, text, time) {
     chatlog.scrollBy(0, 1e8);
   }
 }
+
+function appendMessageWithLinks(container, text) {
+  // Regex: basic URL detection (http/https)
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+
+  let lastIndex = 0;
+  let match;
+
+  while ((match = urlRegex.exec(text)) !== null) {
+    const url = match[0];
+
+    // Text before the URL (always plain text)
+    if (match.index > lastIndex) {
+      const before = text.slice(lastIndex, match.index);
+      container.appendChild(document.createTextNode(before));
+    }
+
+    // The URL itself (hyperlinked)
+    const a = document.createElement("a");
+    a.href = url;
+    a.innerText = url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    container.appendChild(a);
+
+    lastIndex = match.index + url.length;
+  }
+
+  // Remaining text after the last URL
+  if (lastIndex < text.length) {
+    container.appendChild(document.createTextNode(text.slice(lastIndex)));
+  }
+}
+
 
 startNameChooser();
 </script>
