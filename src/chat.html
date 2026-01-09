@@ -30,6 +30,7 @@ body {
   overflow-y: auto;
   padding: 8px;
   overflow-wrap: break-word;
+  background-color: #121212
 }
 #chatlog span.username {
   font-weight: bold;
@@ -55,26 +56,20 @@ body {
 
 /* Logged-in user: light blue bubble */
 .message-self .message-bubble {
-  background-color: #40a3ff; /* light blue */
+  background-color: #2b79c2; /* light blue */
   color: #ffffff;
 }
 
 /* Other users: grey bubble */
 .message-other .message-bubble {
-  background-color: #898989; /* light grey */
+  background-color: #7d7d7d; /* light grey */
   color: #e8e8e8;
 }
 
-/* Make the self timestamp slightly dimmer/smaller */
-.self-timestamp {
+/* Make the timestamp slightly dimmer/smaller */
+.message-timestamp {
   color: #cdcdcd;        /* dim color */
-  font-size: 0.9em;   /* slightly smaller */
-}
-
-/* Make the other timestamp slightly dimmer/smaller */
-.other-timestamp {
-  color: #5e5e5e;        /* dim color */
-  font-size: 0.9em;   /* slightly smaller */
+  font-size: 0.55em;   /* slightly smaller */
 }
 
 .date-separator {
@@ -108,6 +103,8 @@ p:last-of-type {
   bottom: 32px;
   width: 200px;
   border-left: none;
+  color: #898989;
+  background-color: #121212;
 }
 
 ::-webkit-scrollbar {
@@ -129,6 +126,8 @@ p:last-of-type {
   border-top: none;
   padding-left: 32px;
   outline: none;
+  color: #898989;
+  background-color: #121212;
 }
 #chatroom::before {
   z-index: 1;
@@ -143,6 +142,7 @@ p:last-of-type {
   text-align: center;
   font-weight: bold;
   color: #888;
+  background-color: #121212;
   -webkit-text-stroke-width: 2px;
 }
 
@@ -153,7 +153,8 @@ p:last-of-type {
   bottom: 0;
   left: 0;
   right: 0;
-  background-color: white;
+  color: #898989;
+  background-color: #121212;
 }
 
 #name-input {
@@ -166,6 +167,8 @@ p:last-of-type {
   margin: 0;
   text-align: center;
   border: 1px solid #bbb;
+  color: #898989;
+  background-color: #121212;
 }
 
 #name-form p {
@@ -182,7 +185,8 @@ p:last-of-type {
   bottom: 0;
   left: 0;
   right: 0;
-  background-color: white;
+  color: #898989;
+  background-color: #121212;
   font-size: 200%;
   margin-top: calc(50vh - 3em);
   text-align: center;
@@ -194,6 +198,7 @@ p:last-of-type {
   height: 2em;
   width: 16em;
   padding-left: 1em;
+  color: #898989;
 }
 
 #room-form button {
@@ -234,7 +239,7 @@ p:last-of-type {
   -->
   <body>
     <form id="name-form" action="/fake-form-action">
-      <p style="font-weight: bold; font-size: 1.4em;">Chat App (BETA)</p>
+      <p style="font-weight: bold; font-size: 1.4em; color:#898989;">Chat App (BETA)</p>
       <input id="name-input" placeholder="Enter your name...">
     </form>
     <form id="room-form" action="/fake-form-action">
@@ -557,6 +562,7 @@ function addChatMessage(name, payloadOrText, time) {
   const bubble = document.createElement("span");
   bubble.classList.add("message-bubble");
 
+
   if (isSelf) {
     // Self: text + timestamp inside the bubble, no username
     const textSpan = document.createElement("span");
@@ -567,29 +573,29 @@ function addChatMessage(name, payloadOrText, time) {
       const ts = new Date(time);
       if (!isNaN(ts.getTime())) {
         const selfTime = document.createElement("span");
-        selfTime.className = "self-timestamp";
-        selfTime.innerText = " [" + ts.toLocaleTimeString() + "]";
+        selfTime.className = "message-timestamp";
+        selfTime.innerText = "\n[" + ts.toLocaleTimeString() + "]";
         bubble.appendChild(selfTime);
       }
     }
   } else if (hasName) {
-    // Others: [timestamp] username: text inside the bubble
-    if (hasValidTime) {
-      const ts = new Date(time);
-      if (!isNaN(ts.getTime())) {
-        const timeSpan = document.createElement("span");
-        timeSpan.className = "other-timestamp";
-        timeSpan.innerText = "[" + ts.toLocaleTimeString() + "] ";
-        bubble.appendChild(timeSpan);
-      }
-    }
-
     const nameSpan = document.createElement("span");
     nameSpan.className = "username";
     nameSpan.innerText = name + ": ";
     bubble.appendChild(nameSpan);
 
     appendMessageWithLinks(bubble, text);
+
+        // Others: [timestamp] username: text inside the bubble
+    if (hasValidTime) {
+      const ts = new Date(time);
+      if (!isNaN(ts.getTime())) {
+        const timeSpan = document.createElement("span");
+        timeSpan.className = "message-timestamp";
+        timeSpan.innerText = "\n[" + ts.toLocaleTimeString() + "] ";
+        bubble.appendChild(timeSpan);
+      }
+    }
   } else {
     // System/date messages: no bubble color change, or you can skip bubble entirely
     appendMessageWithLinks(bubble, text);
