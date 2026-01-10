@@ -683,7 +683,30 @@ function getDateLabelFromTimestamp(time) {
   return d.toLocaleDateString("en-US", options);
 }
 
-startNameChooser();
+
+
+// Direct room access if name parameter exists is the URL
+if (document.location.hash.length > 1) {
+  const urlParams = new URLSearchParams(window.location.search);
+  
+  // ONLY skip forms if ?name= exists in URL
+  if (urlParams.has('name')) {
+    username = urlParams.get('name').slice(0, 32) || "Guest";
+    roomname = document.location.hash.slice(1);
+    
+    // Hide forms and jump to chat
+    nameForm.style.display = "none";
+    roomForm.style.display = "none";
+    startChat();
+  } else {
+    // No name param = show name chooser normally
+    startNameChooser();
+  }
+} else {
+  startNameChooser();
+}
+
+
 </script>
 <!--===================================================================================-->
 </html>
