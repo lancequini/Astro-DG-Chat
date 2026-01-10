@@ -1,4 +1,4 @@
-name = "astro-dg-chat"
+name = "astro-dg-chat-dev"
 compatibility_date = "2024-01-01"
 
 main = "src/chat.mjs"
