@@ -36,7 +36,7 @@ body {
   font-weight: bold;
 }
 
-/* Container alignment (you likely already have these) */
+/* Message container alignment*/
 .message-self {
   text-align: right;
 }
@@ -81,6 +81,7 @@ body {
 
 #spacer {
   height: calc(100vh - 32px - 5em);
+  background-color: #121212;
 }
 
 #roster {
@@ -126,7 +127,7 @@ p:last-of-type {
   border-top: none;
   padding-left: 32px;
   outline: none;
-  color: #898989;
+  color: #7d7d7d;
   background-color: #121212;
 }
 #chatroom::before {
@@ -153,7 +154,7 @@ p:last-of-type {
   bottom: 0;
   left: 0;
   right: 0;
-  color: #898989;
+  color: #7d7d7d;
   background-color: #121212;
 }
 
@@ -167,7 +168,7 @@ p:last-of-type {
   margin: 0;
   text-align: center;
   border: 1px solid #bbb;
-  color: #898989;
+  color: #7d7d7d;
   background-color: #121212;
 }
 
@@ -185,7 +186,7 @@ p:last-of-type {
   bottom: 0;
   left: 0;
   right: 0;
-  color: #898989;
+  color: #7d7d7d;
   background-color: #121212;
   font-size: 200%;
   margin-top: calc(50vh - 3em);
@@ -198,7 +199,7 @@ p:last-of-type {
   height: 2em;
   width: 16em;
   padding-left: 1em;
-  color: #898989;
+  color: #7d7d7d;
 }
 
 #room-form button {
@@ -237,9 +238,9 @@ p:last-of-type {
       <a href="https://damagedgoods.me" target="_blank">Shop (Coming Soon!)</a>
     </div>
   -->
-  <body>
+  <body style="background-color: #121212;">
     <form id="name-form" action="/fake-form-action">
-      <p style="font-weight: bold; font-size: 1.4em; color:#898989;">Chat App (BETA)</p>
+      <p style="font-weight: bold; font-size: 1.4em; color:#7d7d7d;">Chat App (BETA)</p>
       <input id="name-input" placeholder="Enter your name...">
     </form>
     <form id="room-form" action="/fake-form-action">
@@ -682,7 +683,30 @@ function getDateLabelFromTimestamp(time) {
   return d.toLocaleDateString("en-US", options);
 }
 
-startNameChooser();
+
+
+// Direct room access if name parameter exists is the URL
+if (document.location.hash.length > 1) {
+  const urlParams = new URLSearchParams(window.location.search);
+  
+  // ONLY skip forms if ?name= exists in URL
+  if (urlParams.has('name')) {
+    username = urlParams.get('name').slice(0, 32) || "Guest";
+    roomname = document.location.hash.slice(1);
+    
+    // Hide forms and jump to chat
+    nameForm.style.display = "none";
+    roomForm.style.display = "none";
+    startChat();
+  } else {
+    // No name param = show name chooser normally
+    startNameChooser();
+  }
+} else {
+  startNameChooser();
+}
+
+
 </script>
 <!--===================================================================================-->
 </html>
